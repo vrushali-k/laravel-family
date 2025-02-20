@@ -109,7 +109,7 @@
 							<div class="col-md-2">Name</div>
 							<div class="col-md-2">Date of birth</div>
 							<div class="col-md-1">Marital Status</div>
-							<div class="col-md-2 weddingHead" style='display:none'>Wedding Date</div>
+							<div class="col-md-2 weddingHead">Wedding Date</div>
 							<div class="col-md-2">Education</div>
 							<div class="col-md-2">Photo</div>
 						</div>
@@ -130,8 +130,10 @@
                                     <option value="Married">Married</option>
                                 </select>
                             </div>
-							<div class="col-md-2" style='display:none' id='wedding_date_0'>
-                                <input type="date" name="member_details[0][wedding_date]" class="form-control">
+							<div class="col-md-2">
+								<div  style='display:none' id='wedding_date_0'>
+									<input type="date" name="member_details[0][wedding_date]" class="form-control">
+								</div>
                             </div>
                             <div class="col-md-2">
                                 <input type="text" name="member_details[0][education]" class="form-control" placeholder="Education" required>
@@ -152,7 +154,7 @@
                 <div id="hobby-list">
                     <div class="input-group mb-3">
 						<button type="button" class="btn btn-secondary" id="add-hobby">+</button>
-                        <input type="text" name="hobbies[]" class="form-control" placeholder="Enter a hobby">
+                        <input type="text" name="hobbies[]" class="form-control" placeholder="Enter a hobby" required>
                     </div>
                 </div>
 
@@ -243,11 +245,28 @@
         });
 		$('#state_id').trigger('change');
 		
+		$('#dob').change(function () {
+            var dob = new Date($(this).val());
+            var today = new Date();
+            var age = today.getFullYear() - dob.getFullYear();
+
+            // Adjust for birthdate not yet reached in the current year
+            if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) {
+                age--;
+            }
+
+            if (age < 21) {
+                alert("You must be at least 21 years old.");
+                $(this).val('');
+            }
+        });
+		
     });
 	
 	function addWeddingDate(val) {
 		if($("#marital_status_"+val).val() != '') {
 			if($("#marital_status_"+val).val() == 'Married') {
+				
 				$("#wedding_date_"+val).show();
 			} else {
 				$("#wedding_date_"+val).hide();

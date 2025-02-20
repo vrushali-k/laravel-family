@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\Member;
 use App\Models\MemberDetail;
 use App\Models\Hobby;
@@ -32,55 +33,62 @@ class MemberController extends Controller
      * Store a newly created member in the database.
      */
     public function store(Request $request) {
-		
-		$validated = $request->validate([
-			'name' => 'required|string',
-			'sirname' => 'required|string',
-			'dob' => 'required|date',
-			'mobile_no' => 'required|string',
-			'address' => 'required|string',
-			 'state_id' => 'required|exists:states,id',
-			 'city_id' => 'required|exists:cities,id',
-			'pin_code' => 'required|string',
-			'marital_status' => 'required|string',
-			'wedding_date' => 'nullable|date',
-			'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-			'member_details' => 'array',
-			'hobbies' => 'nullable|array'
-		]);
+		DB::beginTransaction();
+		try {
+			$validated = $request->validate([
+				'name' => 'required|string',
+				'sirname' => 'required|string',
+				'dob' => ['required', 'date', 'before_or_equal:' . now()->subYears(21)->format('Y-m-d')],
+				'mobile_no' => 'required|string',
+				'address' => 'required|string',
+				 'state_id' => 'required|exists:states,id',
+				 'city_id' => 'required|exists:cities,id',
+				'pin_code' => 'required|string',
+				'marital_status' => 'required|string',
+				'wedding_date' => 'nullable|date',
+				'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+				'member_details' => 'array',
+				'hobbies' => 'nullable|array'
+			], [
+				'dob.before_or_equal' => 'You must be at least 21 years old.',
+			]);
 
-		if ($request->hasFile('photo')) {
-			$validated['photo'] = $request->file('photo')->store('photos', 'public');
-		}
-		$member = Member::create($validated);
+			if ($request->hasFile('photo')) {
+				$validated['photo'] = $request->file('photo')->store('photos', 'public');
+			}
+			$member = Member::create($validated);
 
-		if ($request->has('member_details')) {
-			foreach ($request->member_details as $detail) {
-				$detail['member_id'] = $member->id;
+			if ($request->has('member_details')) {
+				foreach ($request->member_details as $detail) {
+					$detail['member_id'] = $member->id;
 
-				if (isset($detail['photo'])) {
-					$detail['photo'] = $detail['photo']->store('photos', 'public');
+					if (isset($detail['photo'])) {
+						$detail['photo'] = $detail['photo']->store('photos', 'public');
+					}
+
+					MemberDetail::create($detail);
+				
 				}
-
-				MemberDetail::create($detail);
+			}
 			
-			}
-		}
-		
-		if ($request->has('hobbies')) { 
-			$hobby = array();
-			foreach ($request->hobbies as $i=>$detail) {
-				$hobby['member_id'] = $member->id;
+			if ($request->has('hobbies')) { 
+				$hobby = array();
+				foreach ($request->hobbies as $i=>$detail) {
+					$hobby['member_id'] = $member->id;
 
-				if (isset($detail)) {
-					$hobby['hobby'] = $detail;
+					if (isset($detail)) {
+						$hobby['hobby'] = $detail;
+					}
+
+					Hobby::create($hobby);
 				}
-
-				Hobby::create($hobby);
 			}
-		}
-
-		return redirect()->route('members.index')->with('success', 'Member and details added!');
+			DB::commit();
+            return redirect()->route('members.index')->with('success', 'Member added successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Error: ' . $e->getMessage())->withInput();
+        }
 	}
 
     /**
